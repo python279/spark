@@ -232,7 +232,7 @@
       <id>central</id>
       <!-- This should be at top, it makes maven try the central repo first and then others and hence faster dep resolution -->
       <name>Maven Repository</name>
-      <url>https://repo.maven.apache.org/maven2</url>
+      <url>http://maven.aliyun.com/nexus/content/repositories/central/</url>
       <releases>
         <enabled>true</enabled>
       </releases>
@@ -240,11 +240,16 @@
         <enabled>false</enabled>
       </snapshots>
     </repository>
+    <repository>
+      <id>cloudera</id>
+      <name>cloudera repository</name>
+      <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+    </repository>
   </repositories>
   <pluginRepositories>
     <pluginRepository>
       <id>central</id>
-      <url>https://repo.maven.apache.org/maven2</url>
+      <url>http://maven.aliyun.com/nexus/content/repositories/central/</url>
       <releases>
         <enabled>true</enabled>
       </releases>

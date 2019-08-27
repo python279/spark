@@ -121,7 +121,8 @@ private[hive] class SparkExecuteStatementOperation(
         result.toLocalIterator.asScala
       } else {
         if (resultList.isEmpty) {
-          resultList = Some(result.collect())
+          val maxResultRows = sqlContext.getConf("spark.sql.thriftserver.maxResultRows", "5000")
+          resultList = Some(result.take(maxResultRows.toInt))
         }
         resultList.get.iterator
       }
@@ -204,7 +205,7 @@ private[hive] class SparkExecuteStatementOperation(
         case NonFatal(e) =>
           logError(s"Error executing query in background", e)
           setState(OperationState.ERROR)
-          throw e
+          throw new HiveSQLException(e)
       }
     }
   }
@@ -243,7 +244,8 @@ private[hive] class SparkExecuteStatementOperation(
           resultList = None
           result.toLocalIterator.asScala
         } else {
-          resultList = Some(result.collect())
+          val maxResultRows = sqlContext.getConf("spark.sql.thriftserver.maxResultRows", "5000")
+          resultList = Some(result.take(maxResultRows.toInt))
           resultList.get.iterator
         }
       }
@@ -288,6 +290,9 @@ private[hive] class SparkExecuteStatementOperation(
     if (statementId != null) {
       sqlContext.sparkContext.cancelJobGroup(statementId)
     }
+    iter = null
+    resultList = null
+    result = null
   }
 }
 
