@@ -293,7 +293,6 @@ private[hive] class SparkExecuteStatementOperation(
     iter = null
     resultList = null
     result = null
-    System.gc()
   }
 }
 
