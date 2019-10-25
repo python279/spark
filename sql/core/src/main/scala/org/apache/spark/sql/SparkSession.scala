@@ -20,10 +20,11 @@ package org.apache.spark.sql
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicReference
 
+import org.apache.commons.lang.StringEscapeUtils
+
 import scala.collection.JavaConverters._
 import scala.reflect.runtime.universe.TypeTag
 import scala.util.control.NonFatal
-
 import org.apache.spark.{SPARK_VERSION, SparkConf, SparkContext}
 import org.apache.spark.annotation.{DeveloperApi, Experimental, InterfaceStability}
 import org.apache.spark.api.java.JavaRDD
@@ -43,7 +44,7 @@ import org.apache.spark.sql.internal.StaticSQLConf.CATALOG_IMPLEMENTATION
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.streaming._
 import org.apache.spark.sql.types.{DataType, StructType}
-import org.apache.spark.sql.util.ExecutionListenerManager
+import org.apache.spark.sql.util.{ExecutionListenerManager, HttpUtils}
 import org.apache.spark.util.{CallSite, Utils}
 
 
@@ -638,7 +639,64 @@ class SparkSession private(
    * @since 2.0.0
    */
   def sql(sqlText: String): DataFrame = {
-    Dataset.ofRows(self, sessionState.sqlParser.parsePlan(sqlText))
+    val newSql = checkSql(sqlText)
+    val df = Dataset.ofRows(self, sessionState.sqlParser.parsePlan(newSql))
+    callBack(newSql)
+    df
+  }
+
+  def checkSql(sqlText: String) : String = {
+    val token = sqlContext.getConf("spark.submit.user.token", "")
+    val helpUrl = sqlContext.getConf("spark.help.use.url", "")
+    if (token == null || token.equals("")) {
+      if (sqlContext.getConf("spark.must.use.token", "false").equalsIgnoreCase("true")) {
+        throw new Exception("spark.submit.user.token was not set, please follow the instruction " + helpUrl)
+      } else {
+        log.warn("spark.submit.user.token was not set")
+        return sqlText
+      }
+    }
+    val authorityUrl = sqlContext.getConf("spark.query.check", "")
+    if (authorityUrl == null || authorityUrl.equals("")) {
+      throw new Exception("spark.query.check was not set, please contact ml_180829409@pingan.com.cn")
+    }
+    var newSql = sqlText
+    val status = HttpUtils.checkStatus(authorityUrl, sqlText, token)
+    if (status != null) {
+      newSql = HttpUtils.sendRequest(authorityUrl, "/getsql/" + status, "GET", "", "", "")
+      if (newSql.toString.contains("\"sql\":")) {
+        sqlContext.setConf("spark.authority.key", status)
+        newSql = HttpUtils.getJsonValue(newSql, "sql")
+      } else {
+        log.error("getsql " + status + " response data :" + newSql)
+        throw new Exception("getsql " + status + " response data :" + newSql)
+      }
+    } else {
+      log.error("check sql failed, please retry or contact ml_180829409@pingan.com.cn")
+      throw new Exception("check sql failed, please retry or contact ml_180829409@pingan.com.cn")
+    }
+    newSql
+  }
+
+  def callBack(sqlText: String): String = {
+    val token = sqlContext.getConf("spark.submit.user.token", "")
+    val helpUrl = sqlContext.getConf("spark.help.use.url", "")
+    if (token == null || token.equals("")) {
+      if (sqlContext.getConf("spark.must.use.token", "false").equalsIgnoreCase("true")) {
+        throw new Exception("spark.submit.user.token was not set, please follow the instruction " + helpUrl)
+      } else {
+        log.warn("spark.submit.user.token was not set")
+        return sqlText
+      }
+    }
+    val authorityUrl = sqlContext.getConf("spark.query.check", "")
+    if (authorityUrl == null || authorityUrl.equals("")) {
+      throw new Exception("spark.query.check was not set, please contact ml_180829409@pingan.com.cn")
+    }
+    val key = sqlContext.getConf("spark.authority.key", "")
+    val res = HttpUtils.sendRequest(authorityUrl, "/commit/" + key, "GET", "", "", "")
+    log.info("callBack key:" + key + ";callback message:" + res)
+    res
   }
 
   /**
