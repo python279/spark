@@ -137,14 +137,15 @@ public class HttpUtils {
         if (result.contains("\"key\":\"")) {
             String key = HttpUtils.getJsonValue(result, "key");
             int count = 0;
-            while ( count < 30 ) {
+            while (count < 30) {
                 checkState = HttpUtils.sendRequest(authorityUrl, "/getstate/" + key, "GET", "", "", "");
 
                 if (checkState.equals("{\"status\":\"error\"}")) {
                     logs = sendRequest(authorityUrl, "/getlog/" + key, "GET", "", "", "");
-                    if (Pattern.matches("^(?i)drop\\s+(table|view)\\s+if\\s+exists\\s+.*",sqlText) && logs.contains("没有找到表")) {
-                        log.error("check sql error: " + logs);
-                        return status;
+                    //if (Pattern.matches("^(?i)drop\\s+(table|view)\\s+if\\s+exists\\s+.*",sqlText) && logs.contains("没有找到表")) {
+                    if (logs.contains("表没有找到")) {
+                        log.warn("check sql warning: " + logs);
+                        return null;
                     } else {
                         errorInfo = "UM: " + submitUser + ", Message: " + logs + ", key: " + key;
                         break;
@@ -154,7 +155,7 @@ public class HttpUtils {
                     return status;
                 }
                 try {
-                    if(count<5) {
+                    if (count<5) {
                         Thread.sleep(1000);
                     } else {
                         Thread.sleep(2000);
