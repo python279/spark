@@ -116,6 +116,10 @@ class SparkContext(object):
         try:
             self._do_init(master, appName, sparkHome, pyFiles, environment, batchSize, serializer,
                           conf, jsc, profiler_cls)
+            try:
+                print("yarn job url: %s" % self.getConf().get('spark.org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter.param.PROXY_URI_BASES').split(',')[0].strip())
+            except:
+                pass
         except:
             # If an error occurs, clean up in order to allow future SparkContext creation:
             self.stop()
