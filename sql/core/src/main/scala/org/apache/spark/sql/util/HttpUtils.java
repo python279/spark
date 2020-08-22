@@ -85,7 +85,7 @@ public class HttpUtils {
         }
     }
 
-    public static String sendRequest(String url, String urlSuffix, String reqType, String db,String sqlText,String token) {
+    public static String sendRequest(String url, String urlSuffix, String reqType, String db, String sqlText, String user) {
         List<String> urlList = Arrays.asList(url.split(","));
         Collections.shuffle(urlList);
         List urlShuffleList = new ArrayList(urlList);
@@ -96,10 +96,10 @@ public class HttpUtils {
                 String newUrl = urlShuffleList.get(0).toString();
                 Map<String,String> map=new HashMap<String,String>();
                 if(reqType.equals("POST")) {
-                    map.put("source","sparksql");
-                    map.put("username",token);
-                    map.put("currentdb",db);
-                    map.put("sql",sqlText);
+                    map.put("source","spark-sql");
+                    map.put("username", user);
+                    map.put("currentdb", db);
+                    map.put("sql", sqlText);
 
                     ObjectMapper objectMapper = new ObjectMapper();
                     String userMapJson = objectMapper.writeValueAsString(map);
@@ -115,25 +115,12 @@ public class HttpUtils {
         return result;
     }
 
-    public static String checkStatus(String authorityUrl,String sqlText,String token) throws Exception{
+    public static String checkStatus(String authorityUrl, String sqlText, String user) throws Exception{
         String status = null;
         String checkState = null;
         String logs = null;
         String errorInfo = null;
-        String submitUser = null;
-        if(!StringUtils.isEmpty(token)) {
-           String decryptUser = AESUtils.decrypt(token);
-           if (decryptUser == null || !decryptUser.startsWith("DSP")) {
-               throw new Exception("invalid spark.submit.user.token");
-           }
-           String[] userArray = decryptUser.split("\\_");
-           if (userArray.length == 3) {
-               submitUser = userArray[1];
-           } else {
-               submitUser = decryptUser.replace("DSP_", "");
-           }
-        }
-        String result = HttpUtils.sendRequest(authorityUrl, "/checksql", "POST", "default", sqlText, submitUser);
+        String result = HttpUtils.sendRequest(authorityUrl, "/checksql", "POST", "default", sqlText, user);
         if (result.contains("\"key\":\"")) {
             String key = HttpUtils.getJsonValue(result, "key");
             int count = 0;
@@ -147,7 +134,7 @@ public class HttpUtils {
                         log.warn("check sql warning: " + logs);
                         return null;
                     } else {
-                        errorInfo = "UM: " + submitUser + ", Message: " + logs + ", key: " + key;
+                        errorInfo = "UM: " + user + ", Message: " + logs + ", key: " + key;
                         break;
                     }
                 } else if (checkState.equals("{\"status\":\"done\"}")) {//success

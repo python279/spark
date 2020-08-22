@@ -135,7 +135,7 @@ class SparkContext(object):
             self._do_init(master, appName, sparkHome, pyFiles, environment, batchSize, serializer,
                           conf, jsc, profiler_cls)
             try:
-                for u in self.getConf().geet('spark.org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter.param.PROXY_URI_BASES').split(','):
+                for u in self.getConf().get('spark.org.apache.hadoop.yarn.server.webproxy.amfilter.AmIpFilter.param.PROXY_URI_BASES').split(','):
                     print("yarn job url: %s" % u.strip())
             except:
                 pass

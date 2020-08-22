@@ -646,23 +646,14 @@ class SparkSession private(
   }
 
   def checkSql(sqlText: String) : String = {
-    val token = sqlContext.getConf("spark.submit.user.token", "")
-    val helpUrl = sqlContext.getConf("spark.help.use.url", "")
-    if (token == null || token.equals("")) {
-      if (sqlContext.getConf("spark.must.use.token", "false").equalsIgnoreCase("true")) {
-        throw new Exception("spark.submit.user.token was not set, please follow the instruction " + helpUrl)
-      } else {
-        log.warn("spark.submit.user.token was not set")
-        return sqlText
-      }
-    }
+    val user = sqlContext.getConf("spark.submit.user", "")
     val authorityUrl = sqlContext.getConf("spark.query.check", "")
     if (authorityUrl == null || authorityUrl.equals("")) {
       throw new Exception("spark.query.check was not set, please contact ml_180829409@pingan.com.cn")
     }
     var newSql = sqlText
     try {
-      val status = HttpUtils.checkStatus(authorityUrl, sqlText, token)
+      val status = HttpUtils.checkStatus(authorityUrl, sqlText, user)
       if (status != null) {
         newSql = HttpUtils.sendRequest(authorityUrl, "/getsql/" + status, "GET", "", "", "")
         if (newSql.toString.contains("\"sql\":")) {
@@ -682,8 +673,6 @@ class SparkSession private(
   }
 
   def callBack(sqlText: String): String = {
-    val token = sqlContext.getConf("spark.submit.user.token", "")
-    val helpUrl = sqlContext.getConf("spark.help.use.url", "")
     val authorityUrl = sqlContext.getConf("spark.query.check", "")
     val key = sqlContext.getConf("spark.authority.key", "")
     if (key != null) {
