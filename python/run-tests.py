@@ -53,7 +53,7 @@ def print_red(text):
     print('\033[31m' + text + '\033[0m')
 
 
-SKIPPED_TESTS = Manager().dict()
+SKIPPED_TESTS = None
 LOG_FILE = os.path.join(SPARK_HOME, "python/unit-tests.log")
 FAILURE_REPORTING_LOCK = Lock()
 LOGGER = logging.getLogger()
@@ -117,7 +117,7 @@ def run_individual_python_test(target_dir, test_name, pyspark_python):
                     log_file.writelines(per_test_output)
                 per_test_output.seek(0)
                 for line in per_test_output:
-                    decoded_line = line.decode()
+                    decoded_line = line.decode("utf-8", "replace")
                     if not re.match('[0-9]+', decoded_line):
                         print(decoded_line, end='')
                 per_test_output.close()
@@ -134,13 +134,14 @@ def run_individual_python_test(target_dir, test_name, pyspark_python):
             per_test_output.seek(0)
             # Here expects skipped test output from unittest when verbosity level is
             # 2 (or --verbose option is enabled).
-            decoded_lines = map(lambda line: line.decode(), iter(per_test_output))
+            decoded_lines = map(lambda line: line.decode("utf-8", "replace"), iter(per_test_output))
             skipped_tests = list(filter(
                 lambda line: re.search(r'test_.* \(pyspark\..*\) ... skipped ', line),
                 decoded_lines))
             skipped_counts = len(skipped_tests)
             if skipped_counts > 0:
                 key = (pyspark_python, test_name)
+                assert SKIPPED_TESTS is not None
                 SKIPPED_TESTS[key] = skipped_tests
             per_test_output.close()
         except:
@@ -293,4 +294,5 @@ def main():
 
 
 if __name__ == "__main__":
+    SKIPPED_TESTS = Manager().dict()
     main()

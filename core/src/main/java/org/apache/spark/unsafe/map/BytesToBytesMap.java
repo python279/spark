@@ -421,11 +421,11 @@ public final class BytesToBytesMap extends MemoryConsumer {
    *
    * For efficiency, all calls to `next()` will return the same {@link Location} object.
    *
-   * If any other lookups or operations are performed on this map while iterating over it, including
-   * `lookup()`, the behavior of the returned iterator is undefined.
+   * The returned iterator is thread-safe. However if the map is modified while iterating over it,
+   * the behavior of the returned iterator is undefined.
    */
   public MapIterator iterator() {
-    return new MapIterator(numValues, loc, false);
+    return new MapIterator(numValues, new Location(), false);
   }
 
   /**
@@ -435,19 +435,20 @@ public final class BytesToBytesMap extends MemoryConsumer {
    *
    * For efficiency, all calls to `next()` will return the same {@link Location} object.
    *
-   * If any other lookups or operations are performed on this map while iterating over it, including
-   * `lookup()`, the behavior of the returned iterator is undefined.
+   * The returned iterator is thread-safe. However if the map is modified while iterating over it,
+   * the behavior of the returned iterator is undefined.
    */
   public MapIterator destructiveIterator() {
     updatePeakMemoryUsed();
-    return new MapIterator(numValues, loc, true);
+    return new MapIterator(numValues, new Location(), true);
   }
 
   /**
    * Looks up a key, and return a {@link Location} handle that can be used to test existence
    * and read/write values.
    *
-   * This function always return the same {@link Location} instance to avoid object allocation.
+   * This function always returns the same {@link Location} instance to avoid object allocation.
+   * This function is not thread-safe.
    */
   public Location lookup(Object keyBase, long keyOffset, int keyLength) {
     safeLookup(keyBase, keyOffset, keyLength, loc,
@@ -459,7 +460,8 @@ public final class BytesToBytesMap extends MemoryConsumer {
    * Looks up a key, and return a {@link Location} handle that can be used to test existence
    * and read/write values.
    *
-   * This function always return the same {@link Location} instance to avoid object allocation.
+   * This function always returns the same {@link Location} instance to avoid object allocation.
+   * This function is not thread-safe.
    */
   public Location lookup(Object keyBase, long keyOffset, int keyLength, int hash) {
     safeLookup(keyBase, keyOffset, keyLength, loc, hash);
@@ -704,7 +706,10 @@ public final class BytesToBytesMap extends MemoryConsumer {
       assert (vlen % 8 == 0);
       assert (longArray != null);
 
-      if (numKeys == MAX_CAPACITY
+      // We should not increase number of keys to be MAX_CAPACITY. The usage pattern of this map is
+      // lookup + append. If we append key until the number of keys to be MAX_CAPACITY, next time
+      // the call of lookup will hang forever because it cannot find an empty slot.
+      if (numKeys == MAX_CAPACITY - 1
         // The map could be reused from last spill (because of no enough memory to grow),
         // then we don't try to grow again if hit the `growthThreshold`.
         || !canGrowArray && numKeys >= growthThreshold) {
@@ -751,7 +756,9 @@ public final class BytesToBytesMap extends MemoryConsumer {
         longArray.set(pos * 2 + 1, keyHashcode);
         isDefined = true;
 
-        if (numKeys >= growthThreshold && longArray.size() < MAX_CAPACITY) {
+        // We use two array entries per key, so the array size is twice the capacity.
+        // We should compare the current capacity of the array, instead of its size.
+        if (numKeys >= growthThreshold && longArray.size() / 2 < MAX_CAPACITY) {
           try {
             growAndRehash();
           } catch (OutOfMemoryError oom) {
@@ -899,6 +906,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
     numKeys = 0;
     numValues = 0;
     freeArray(longArray);
+    longArray = null;
     while (dataPages.size() > 0) {
       MemoryBlock dataPage = dataPages.removeLast();
       freePage(dataPage);

@@ -150,6 +150,9 @@ function get_release_info {
   GIT_REF="$RELEASE_TAG"
   if is_dry_run; then
     echo "This is a dry run. Please confirm the ref that will be built for testing."
+    if [[ $SKIP_TAG = 0 ]]; then
+      GIT_REF="$GIT_BRANCH"
+    fi
     GIT_REF=$(read_config "Ref" "$GIT_REF")
   fi
   export GIT_REF
@@ -222,7 +225,7 @@ function init_maven_sbt {
   if [[ $JAVA_VERSION < "1.8." ]]; then
     # Needed for maven central when using Java 7.
     SBT_OPTS="-Dhttps.protocols=TLSv1.1,TLSv1.2"
-    MVN_EXTRA_OPTS="-Dhttps.protocols=TLSv1.1,TLSv1.2"
+    MVN_EXTRA_OPTS="-Xmx2g -XX:ReservedCodeCacheSize=1g -Dhttps.protocols=TLSv1.1,TLSv1.2"
     MVN="$MVN $MVN_EXTRA_OPTS"
   fi
   export MVN MVN_EXTRA_OPTS SBT_OPTS
