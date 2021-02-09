@@ -406,7 +406,10 @@ final class DataFrameWriter[T] private[sql](ds: Dataset[T]) {
    * @since 1.4.0
    */
   def saveAsTable(tableName: String): Unit = {
+    var sql = s"create table $tableName as select 1"
+    var new_sql = df.sparkSession.checkSql(sql)
     saveAsTable(df.sparkSession.sessionState.sqlParser.parseTableIdentifier(tableName))
+    df.sparkSession.callBack(sql)
   }
 
   private def saveAsTable(tableIdent: TableIdentifier): Unit = {

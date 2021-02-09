@@ -25,7 +25,19 @@ fi
 export PYTHONHASHSEED=0
 
 if [ "${MY_NAMESPACE}" != "" ]; then
-  exec "${SPARK_HOME}"/bin/spark-class org.apache.spark.deploy.SparkSubmit ${SPARK_CUSTOM_OPTIONS} --conf spark.submit.user=${MY_NAMESPACE} "$@"
+  exec "${SPARK_HOME}"/bin/spark-class org.apache.spark.deploy.SparkSubmit \
+       ${SPARK_CUSTOM_OPTIONS} \
+       --conf spark.submit.user=${MY_NAMESPACE} \
+       --conf spark.driver.host=${MY_POD_IP} \
+       --conf spark.yarn.keytab=${MY_KEYTAB} \
+       --conf spark.yarn.principal=${MY_PRINCIPAL} \
+       "$@"
 else
-  exec "${SPARK_HOME}"/bin/spark-class org.apache.spark.deploy.SparkSubmit ${SPARK_CUSTOM_OPTIONS} --conf spark.submit.user=$(whoami) "$@"
+  exec "${SPARK_HOME}"/bin/spark-class org.apache.spark.deploy.SparkSubmit \
+       ${SPARK_CUSTOM_OPTIONS} \
+       --conf spark.submit.user=$(whoami) \
+       --conf spark.driver.host=${MY_POD_IP} \
+       --conf spark.yarn.keytab=${MY_KEYTAB} \
+       --conf spark.yarn.principal=${MY_PRINCIPAL} \
+       "$@"
 fi
